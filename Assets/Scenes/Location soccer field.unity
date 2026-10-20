@@ -634,13 +634,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 874298410}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.25882, y: -0, z: -0, w: 0.96592563}
-  m_LocalPosition: {x: -0.09, y: 2.32, z: -2.0771813}
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 0, y: 16.720001, z: -1.75}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1043452856}
-  m_LocalEulerAnglesHint: {x: 30, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!1001 &919129311
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -742,7 +742,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 10
-  turnSpeed: 540
+  turnSpeed: 480
   animator: {fileID: 1043452855}
 --- !u!114 &1043452858
 MonoBehaviour:
@@ -770,9 +770,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e1c5799a8c47449e90b03c6af253bc31, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  kickRange: 1.2
+  kickRange: 1.4
   kickSpeed: 21
-  autoKickCooldown: 0.8
   goalConfettiPrefab: {fileID: 6661073620808731575, guid: 7d05e4127f42c914aa5d5902442e058e, type: 3}
 --- !u!136 &1043452860
 CapsuleCollider:
@@ -1254,7 +1253,7 @@ MonoBehaviour:
       m_Calls: []
   m_FontData:
     m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
-    m_FontSize: 26
+    m_FontSize: 30
     m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
@@ -1265,7 +1264,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'AUTO KICK: OFF'
+  m_Text: AUTO KICK
 --- !u!222 &2058509210
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1471,7 +1470,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.68, g: 0.12, b: 0.1, a: 0.96}
+  m_Color: {r: 0.08, g: 0.32, b: 0.68, a: 0.96}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1514,7 +1513,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 24, y: -24}
-  m_SizeDelta: {x: 250, y: 68}
+  m_SizeDelta: {x: 270, y: 76}
   m_Pivot: {x: 0, y: 1}
 --- !u!1 &880000000000001000
 GameObject:

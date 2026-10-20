@@ -4,12 +4,9 @@ public class PlayerKickController : MonoBehaviour
 {
     [SerializeField, Min(0.1f)] private float kickRange = 1.6f;
     [SerializeField, Min(0.1f)] private float kickSpeed = 27f;
-    [SerializeField, Min(0.1f)] private float autoKickCooldown = 0.8f;
     [SerializeField] private GameObject goalConfettiPrefab;
 
     private SoccerBallPhysics nearbyBall;
-    private bool autoKickEnabled;
-    private float nextKickTime;
 
     private void Awake()
     {
@@ -55,8 +52,7 @@ public class PlayerKickController : MonoBehaviour
     {
         UpdateNearbyBall();
 
-        if (nearbyBall != null
-            && ((autoKickEnabled && Time.time >= nextKickTime) || Input.GetKeyDown(KeyCode.Space)))
+        if (nearbyBall != null && Input.GetKeyDown(KeyCode.Space))
         {
             KickNearestBall();
         }
@@ -89,24 +85,53 @@ public class PlayerKickController : MonoBehaviour
 
     public bool HasNearbyBall => nearbyBall != null;
 
-    public bool AutoKickEnabled => autoKickEnabled;
-
     public void KickNearestBall()
     {
-        if (nearbyBall == null)
+        KickBall(nearbyBall);
+    }
+
+    public void KickFarthestBall()
+    {
+        SoccerBallPhysics farthestBall = null;
+        float farthestDistanceSquared = float.NegativeInfinity;
+        SoccerBallPhysics[] balls = FindObjectsOfType<SoccerBallPhysics>();
+
+        foreach (SoccerBallPhysics ball in balls)
+        {
+            if (ball == null)
+            {
+                continue;
+            }
+
+            Vector3 offset = ball.transform.position - transform.position;
+            offset.y = 0f;
+            float distanceSquared = offset.sqrMagnitude;
+            if (distanceSquared > farthestDistanceSquared)
+            {
+                farthestDistanceSquared = distanceSquared;
+                farthestBall = ball;
+            }
+        }
+
+        KickBall(farthestBall);
+    }
+
+    private void KickBall(SoccerBallPhysics ball)
+    {
+        if (ball == null)
         {
             return;
         }
 
-        Transform nearestGoal = FindNearestGoal(nearbyBall.transform.position);
-        Rigidbody ballBody = nearbyBall.GetComponent<Rigidbody>();
+        Transform nearestGoal = FindNearestGoal(ball.transform.position);
+        Rigidbody ballBody = ball.GetComponent<Rigidbody>();
         if (nearestGoal == null || ballBody == null)
         {
             return;
         }
 
         Vector3 aimPoint = GetGoalAimPoint(nearestGoal);
-        Vector3 toGoal = aimPoint - nearbyBall.transform.position;
+        Vector3 toGoal = aimPoint - ball.transform.position;
         Vector3 horizontalDirection = Vector3.ProjectOnPlane(toGoal, Vector3.up);
         float horizontalDistance = horizontalDirection.magnitude;
         if (horizontalDistance < 0.01f)
@@ -131,16 +156,13 @@ public class PlayerKickController : MonoBehaviour
                 cameraController = mainCamera.gameObject.AddComponent<SoccerBallCameraController>();
             }
 
-            cameraController.BeginBallFollow(nearbyBall, nearestGoal, horizontalDirection, goalConfettiPrefab);
+            cameraController.BeginBallFollow(ball, nearestGoal, horizontalDirection, goalConfettiPrefab);
         }
 
-        nextKickTime = Time.time + autoKickCooldown;
-        nearbyBall = null;
-    }
-
-    public void ToggleAutoKick()
-    {
-        autoKickEnabled = !autoKickEnabled;
+        if (ball == nearbyBall)
+        {
+            nearbyBall = null;
+        }
     }
 
     private Vector3 CalculateKickVelocity(Vector3 horizontalDirection, float horizontalDistance, float heightDifference)

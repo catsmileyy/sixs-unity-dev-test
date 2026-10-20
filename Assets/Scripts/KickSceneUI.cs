@@ -15,9 +15,6 @@ public class KickSceneUI : MonoBehaviour
     [SerializeField] private Button autoKickButton;
     [SerializeField] private Button resetButton;
 
-    private Image autoKickImage;
-    private Text autoKickText;
-    private bool lastAutoKickState;
     private bool initialized;
 
     private void OnEnable()
@@ -33,7 +30,6 @@ public class KickSceneUI : MonoBehaviour
     private void Start()
     {
         BindGameplay();
-        UpdateAutoKickAppearance();
     }
 
     private void Update()
@@ -49,10 +45,6 @@ public class KickSceneUI : MonoBehaviour
             kickButton.gameObject.SetActive(playerKickController.HasNearbyBall);
         }
 
-        if (autoKickButton != null && lastAutoKickState != playerKickController.AutoKickEnabled)
-        {
-            UpdateAutoKickAppearance();
-        }
     }
 
     private void EnsureSceneUI()
@@ -86,15 +78,12 @@ public class KickSceneUI : MonoBehaviour
             new Color(0.08f, 0.32f, 0.68f, 0.96f), "KICK", 30);
         autoKickButton = FindButton("Auto Kick Button") ?? CreateButton(
             "Auto Kick Button", new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(0f, 1f), new Vector2(24f, -24f), new Vector2(250f, 68f),
-            new Color(0.68f, 0.12f, 0.1f, 0.96f), "AUTO KICK: OFF", 26);
+            new Vector2(0f, 1f), new Vector2(24f, -24f), new Vector2(270f, 76f),
+            new Color(0.08f, 0.32f, 0.68f, 0.96f), "AUTO KICK", 30);
         resetButton = FindButton("Reset Button") ?? CreateButton(
             "Reset Button", new Vector2(1f, 1f), new Vector2(1f, 1f),
             new Vector2(1f, 1f), new Vector2(-24f, -24f), new Vector2(180f, 68f),
             new Color(0.68f, 0.12f, 0.1f, 0.96f), "RESET", 28);
-
-        autoKickImage = autoKickButton.GetComponent<Image>();
-        autoKickText = autoKickButton.GetComponentInChildren<Text>();
 
         if (!Application.isPlaying)
         {
@@ -110,7 +99,6 @@ public class KickSceneUI : MonoBehaviour
             kickButton.onClick.AddListener(OnKickClicked);
             autoKickButton.onClick.AddListener(OnAutoKickClicked);
             resetButton.onClick.AddListener(ResetCurrentScene);
-            UpdateAutoKickAppearance();
         }
 
         if (FindObjectOfType<EventSystem>() == null)
@@ -192,24 +180,8 @@ public class KickSceneUI : MonoBehaviour
     {
         if (playerKickController != null)
         {
-            playerKickController.ToggleAutoKick();
-            UpdateAutoKickAppearance();
+            playerKickController.KickFarthestBall();
         }
-    }
-
-    private void UpdateAutoKickAppearance()
-    {
-        if (autoKickImage == null || autoKickText == null || playerKickController == null)
-        {
-            return;
-        }
-
-        bool enabled = playerKickController.AutoKickEnabled;
-        lastAutoKickState = enabled;
-        autoKickImage.color = enabled
-            ? new Color(0.1f, 0.62f, 0.22f, 0.96f)
-            : new Color(0.68f, 0.12f, 0.1f, 0.96f);
-        autoKickText.text = enabled ? "AUTO KICK: ON" : "AUTO KICK: OFF";
     }
 
     private static void ResetCurrentScene()
