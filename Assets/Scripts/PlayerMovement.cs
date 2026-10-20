@@ -4,14 +4,16 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     [SerializeField, Min(0f)] private float moveSpeed = 5f;
-    [SerializeField, Min(0f)] private float turnSpeed = 180f;
+    [SerializeField, Min(0f)] private float rotationSpeed = 720f;
     [SerializeField] private Animator animator;
 
     private Rigidbody body;
     private PlayerFieldBoundary fieldBoundary;
-    private float turnInput;
-    private float moveInput;
+    private Vector2 movementInput;
     private bool movementLocked;
+    private Transform playerCamera;
+    private Vector3 cameraOffset;
+    private Quaternion cameraRotation;
 
     private static readonly int BlendParameter = Animator.StringToHash("Blend");
 
@@ -50,16 +52,26 @@ public class PlayerMovement : MonoBehaviour
             animator = GetComponentInChildren<Animator>();
         }
 
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null && mainCamera.transform.IsChildOf(transform))
+        {
+            playerCamera = mainCamera.transform;
+            cameraOffset = playerCamera.position - transform.position;
+            cameraRotation = playerCamera.rotation;
+            playerCamera.SetParent(null, true);
+        }
     }
 
     private void Update()
     {
-        turnInput = movementLocked ? 0f : Input.GetAxisRaw("Horizontal");
-        moveInput = movementLocked ? 0f : Input.GetAxisRaw("Vertical");
+        movementInput = movementLocked
+            ? Vector2.zero
+            : new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+        movementInput = Vector2.ClampMagnitude(movementInput, 1f);
 
         if (animator != null)
         {
-            animator.SetFloat(BlendParameter, Mathf.Abs(moveInput) * 0.6f, 0.1f, Time.deltaTime);
+            animator.SetFloat(BlendParameter, movementInput.magnitude * 0.6f, 0.1f, Time.deltaTime);
         }
     }
 
@@ -82,11 +94,7 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        Quaternion nextRotation = body.rotation
-            * Quaternion.Euler(0f, turnInput * turnSpeed * Time.fixedDeltaTime, 0f);
-        body.MoveRotation(nextRotation);
-
-        Vector3 targetVelocity = (nextRotation * Vector3.forward) * (moveInput * moveSpeed);
+        Vector3 targetVelocity = new Vector3(movementInput.x, 0f, movementInput.y) * moveSpeed;
 
         if (fieldBoundary != null)
         {
@@ -96,6 +104,28 @@ public class PlayerMovement : MonoBehaviour
         }
 
         body.velocity = new Vector3(targetVelocity.x, 0f, targetVelocity.z);
+        Vector3 movementDirection = new Vector3(movementInput.x, 0f, movementInput.y);
+        if (movementDirection.sqrMagnitude > 0.001f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(movementDirection, Vector3.up);
+            Quaternion nextRotation = Quaternion.RotateTowards(
+                body.rotation,
+                targetRotation,
+                rotationSpeed * Time.fixedDeltaTime);
+            body.MoveRotation(nextRotation);
+        }
+
         body.angularVelocity = Vector3.zero;
+    }
+
+    private void LateUpdate()
+    {
+        if (playerCamera == null || playerCamera.GetComponent<SoccerBallCameraController>() != null)
+        {
+            return;
+        }
+
+        playerCamera.position = transform.position + cameraOffset;
+        playerCamera.rotation = cameraRotation;
     }
 }

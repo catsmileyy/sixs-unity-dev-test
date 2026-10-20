@@ -742,7 +742,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 10
-  turnSpeed: 480
+  rotationSpeed: 720
   animator: {fileID: 1043452855}
 --- !u!114 &1043452858
 MonoBehaviour:

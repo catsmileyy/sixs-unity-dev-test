@@ -59,6 +59,34 @@ public class SoccerBallPhysics : MonoBehaviour
         }
     }
 
+    private void OnCollisionStay(Collision collision)
+    {
+        SoccerBallPhysics otherBall = collision.gameObject.GetComponent<SoccerBallPhysics>();
+        if (otherBall == null || body == null)
+        {
+            return;
+        }
+
+        foreach (ContactPoint contact in collision.contacts)
+        {
+            Vector3 normal = transform.position - otherBall.transform.position;
+            if (normal.sqrMagnitude < 0.0001f)
+            {
+                normal = contact.normal;
+            }
+
+            normal.Normalize();
+            float ownNormalVelocity = Vector3.Dot(body.velocity, normal);
+            float otherNormalVelocity = Vector3.Dot(otherBall.GetVelocity(), normal);
+            body.velocity += normal * (otherNormalVelocity - ownNormalVelocity);
+        }
+    }
+
+    private Vector3 GetVelocity()
+    {
+        return body != null ? body.velocity : Vector3.zero;
+    }
+
     private float GetWorldRadius()
     {
         Vector3 scale = transform.lossyScale;

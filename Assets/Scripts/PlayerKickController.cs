@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerKickController : MonoBehaviour
@@ -7,6 +8,7 @@ public class PlayerKickController : MonoBehaviour
     [SerializeField] private GameObject goalConfettiPrefab;
 
     private SoccerBallPhysics nearbyBall;
+    private readonly HashSet<SoccerBallPhysics> scoredBalls = new HashSet<SoccerBallPhysics>();
 
     private void Awake()
     {
@@ -50,11 +52,46 @@ public class PlayerKickController : MonoBehaviour
 
     private void Update()
     {
+        DetectManuallyScoredBalls();
         UpdateNearbyBall();
 
         if (nearbyBall != null && Input.GetKeyDown(KeyCode.Space))
         {
             KickNearestBall();
+        }
+    }
+
+    private void DetectManuallyScoredBalls()
+    {
+        SoccerBallPhysics[] balls = FindObjectsOfType<SoccerBallPhysics>();
+        foreach (SoccerBallPhysics ball in balls)
+        {
+            if (ball == null || scoredBalls.Contains(ball))
+            {
+                continue;
+            }
+
+            Transform goal = FindGoalContainingBall(ball);
+            if (goal == null)
+            {
+                continue;
+            }
+
+            scoredBalls.Add(ball);
+            Camera mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                continue;
+            }
+
+            SoccerBallCameraController cameraController =
+                mainCamera.GetComponent<SoccerBallCameraController>();
+            if (cameraController == null)
+            {
+                cameraController = mainCamera.gameObject.AddComponent<SoccerBallCameraController>();
+            }
+
+            cameraController.RegisterGoal(ball, goal, goalConfettiPrefab);
         }
     }
 
@@ -66,7 +103,7 @@ public class PlayerKickController : MonoBehaviour
 
         foreach (SoccerBallPhysics ball in balls)
         {
-            if (ball == null)
+            if (ball == null || IsBallInsideAnyGoal(ball))
             {
                 continue;
             }
@@ -98,7 +135,7 @@ public class PlayerKickController : MonoBehaviour
 
         foreach (SoccerBallPhysics ball in balls)
         {
-            if (ball == null)
+            if (ball == null || IsBallInsideAnyGoal(ball))
             {
                 continue;
             }
@@ -116,9 +153,58 @@ public class PlayerKickController : MonoBehaviour
         KickBall(farthestBall);
     }
 
+    private bool IsBallInsideAnyGoal(SoccerBallPhysics ball)
+    {
+        if (scoredBalls.Contains(ball))
+        {
+            return true;
+        }
+
+        return FindGoalContainingBall(ball) != null;
+    }
+
+    private Transform FindGoalContainingBall(SoccerBallPhysics ball)
+    {
+        Transform[] allTransforms = FindObjectsOfType<Transform>();
+        foreach (Transform candidate in allTransforms)
+        {
+            if (!candidate.name.StartsWith("soccer goal", System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            BoxCollider goalArea = candidate.GetComponent<BoxCollider>();
+            if (goalArea == null)
+            {
+                continue;
+            }
+
+            SphereCollider ballCollider = ball.GetComponent<SphereCollider>();
+            Vector3 ballPosition = ballCollider != null
+                ? ballCollider.bounds.center
+                : ball.transform.position;
+            Vector3 localBallPosition = candidate.InverseTransformPoint(ballPosition);
+            Vector3 localGoalCenter = goalArea.center;
+            Vector3 localGoalExtents = goalArea.size * 0.5f;
+            bool insideGoalArea = Mathf.Abs(localBallPosition.x - localGoalCenter.x)
+                <= localGoalExtents.x
+                && Mathf.Abs(localBallPosition.y - localGoalCenter.y)
+                <= localGoalExtents.y
+                && Mathf.Abs(localBallPosition.z - localGoalCenter.z)
+                <= localGoalExtents.z;
+
+            if (insideGoalArea)
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
     private void KickBall(SoccerBallPhysics ball)
     {
-        if (ball == null)
+        if (ball == null || IsBallInsideAnyGoal(ball))
         {
             return;
         }

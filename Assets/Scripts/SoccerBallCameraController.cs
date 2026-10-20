@@ -2,8 +2,6 @@ using UnityEngine;
 
 public class SoccerBallCameraController : MonoBehaviour
 {
-    [SerializeField, Min(0.1f)] private float followDistance = 6f;
-    [SerializeField, Min(0.1f)] private float followHeight = 3.5f;
     [SerializeField, Min(0.01f)] private float cameraSmoothTime = 0.18f;
     [SerializeField, Min(0f)] private float goalHoldDuration = 2f;
     [SerializeField, Min(0.1f)] private float returnDuration = 0.8f;
@@ -19,26 +17,37 @@ public class SoccerBallCameraController : MonoBehaviour
 
     private CameraMode mode = CameraMode.Player;
     private PlayerMovement playerMovement;
+    private Transform playerTransform;
     private SoccerBallPhysics followedBall;
     private Transform followedGoal;
     private GameObject goalConfettiPrefab;
     private Vector3 kickDirection;
-    private Vector3 normalLocalPosition;
-    private Quaternion normalLocalRotation;
+    private Vector3 normalWorldPosition;
+    private Vector3 normalWorldOffset;
+    private Quaternion normalWorldRotation;
     private Vector3 positionSmoothVelocity;
     private float followStartedAt;
     private bool goalReachedForCurrentShot;
     private float goalReachedAt;
     private float returnStartedAt;
     private bool confettiSpawnedForCurrentShot;
-    private Vector3 returnStartLocalPosition;
-    private Quaternion returnStartLocalRotation;
+    private Vector3 returnStartWorldPosition;
 
     private void Awake()
     {
-        normalLocalPosition = transform.localPosition;
-        normalLocalRotation = transform.localRotation;
         playerMovement = GetComponentInParent<PlayerMovement>();
+        if (playerMovement == null)
+        {
+            playerMovement = FindObjectOfType<PlayerMovement>();
+        }
+
+        playerTransform = playerMovement != null ? playerMovement.transform : transform.parent;
+        normalWorldPosition = transform.position;
+        normalWorldOffset = playerTransform != null
+            ? normalWorldPosition - playerTransform.position
+            : Vector3.zero;
+        normalWorldRotation = transform.rotation;
+        transform.SetParent(null, true);
     }
 
     public void BeginBallFollow(
@@ -60,7 +69,7 @@ public class SoccerBallCameraController : MonoBehaviour
         kickDirection = Vector3.ProjectOnPlane(direction, Vector3.up).normalized;
         if (kickDirection.sqrMagnitude < 0.001f)
         {
-            kickDirection = transform.parent != null ? transform.parent.forward : Vector3.forward;
+            kickDirection = Vector3.forward;
         }
 
         followStartedAt = Time.time;
@@ -72,6 +81,10 @@ public class SoccerBallCameraController : MonoBehaviour
         {
             playerMovement = GetComponentInParent<PlayerMovement>();
         }
+        if (playerTransform == null && playerMovement != null)
+        {
+            playerTransform = playerMovement.transform;
+        }
 
         if (playerMovement != null)
         {
@@ -79,10 +92,40 @@ public class SoccerBallCameraController : MonoBehaviour
         }
     }
 
+    public void RegisterGoal(
+        SoccerBallPhysics ball,
+        Transform goal,
+        GameObject confettiPrefab)
+    {
+        if (ball == null || goal == null)
+        {
+            return;
+        }
+
+        followedBall = ball;
+        followedGoal = goal;
+        goalConfettiPrefab = confettiPrefab;
+        confettiSpawnedForCurrentShot = false;
+        goalReachedForCurrentShot = true;
+        if (!confettiSpawnedForCurrentShot)
+        {
+            SpawnGoalConfetti();
+            StopBallAtGoal();
+        }
+    }
+
     private void LateUpdate()
     {
         switch (mode)
         {
+            case CameraMode.Player:
+                if (playerTransform != null)
+                {
+                    transform.position = playerTransform.position + normalWorldOffset;
+                }
+
+                transform.rotation = normalWorldRotation;
+                break;
             case CameraMode.FollowingBall:
             case CameraMode.HoldingAtGoal:
                 UpdateBallView();
@@ -125,6 +168,7 @@ public class SoccerBallCameraController : MonoBehaviour
                     if (!confettiSpawnedForCurrentShot)
                     {
                         SpawnGoalConfetti();
+                        StopBallAtGoal();
                     }
                 }
 
@@ -139,24 +183,13 @@ public class SoccerBallCameraController : MonoBehaviour
         }
 
         Vector3 targetPosition = followedBall.transform.position;
-        Vector3 cameraPosition = targetPosition - kickDirection * followDistance + Vector3.up * followHeight;
+        Vector3 cameraPosition = targetPosition + normalWorldOffset;
         transform.position = Vector3.SmoothDamp(
             transform.position,
             cameraPosition,
             ref positionSmoothVelocity,
             cameraSmoothTime);
-
-        Vector3 lookTarget = mode == CameraMode.HoldingAtGoal
-            ? GetGoalCenter(followedGoal)
-            : targetPosition + Vector3.up * 0.35f;
-        Vector3 lookDirection = lookTarget - transform.position;
-        if (lookDirection.sqrMagnitude > 0.001f)
-        {
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
-                Quaternion.LookRotation(lookDirection, Vector3.up),
-                1f - Mathf.Exp(-Time.deltaTime * 8f));
-        }
+        transform.rotation = normalWorldRotation;
     }
 
     private void SpawnGoalConfetti()
@@ -185,12 +218,29 @@ public class SoccerBallCameraController : MonoBehaviour
         Destroy(confetti, Mathf.Max(cleanupDelay + 0.5f, 1f));
     }
 
+    private void StopBallAtGoal()
+    {
+        if (followedBall == null)
+        {
+            return;
+        }
+
+        Rigidbody ballBody = followedBall.GetComponent<Rigidbody>();
+        if (ballBody == null)
+        {
+            return;
+        }
+
+        ballBody.velocity = Vector3.zero;
+        ballBody.angularVelocity = Vector3.zero;
+        ballBody.isKinematic = false;
+    }
+
     private void BeginReturnToPlayer()
     {
         mode = CameraMode.ReturningToPlayer;
         returnStartedAt = Time.time;
-        returnStartLocalPosition = transform.localPosition;
-        returnStartLocalRotation = transform.localRotation;
+        returnStartWorldPosition = transform.position;
         followedBall = null;
         followedGoal = null;
     }
@@ -199,12 +249,16 @@ public class SoccerBallCameraController : MonoBehaviour
     {
         float progress = Mathf.Clamp01((Time.time - returnStartedAt) / returnDuration);
         float easedProgress = progress * progress * (3f - 2f * progress);
-        transform.localPosition = Vector3.Lerp(returnStartLocalPosition, normalLocalPosition, easedProgress);
-        transform.localRotation = Quaternion.Slerp(returnStartLocalRotation, normalLocalRotation, easedProgress);
+        Vector3 targetPosition = playerTransform != null
+            ? playerTransform.position + normalWorldOffset
+            : normalWorldPosition;
+        transform.position = Vector3.Lerp(returnStartWorldPosition, targetPosition, easedProgress);
+        transform.rotation = Quaternion.Slerp(transform.rotation, normalWorldRotation, easedProgress);
 
         if (progress >= 1f)
         {
             mode = CameraMode.Player;
+            transform.rotation = normalWorldRotation;
             if (playerMovement != null)
             {
                 playerMovement.SetMovementLocked(false);
